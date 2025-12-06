@@ -112,7 +112,7 @@ def parse_data_file(file_path: Path, batch_size: int = 10_000) -> pl.DataFrame:
     df = pl.DataFrame(
         data,
         schema=[
-            ("timestamp", pl.Float64),
+            ("msg_timestamp", pl.Float64),
             ("ac_id", pl.UInt8),
             ("msg_type", pl.Categorical),
             ("payload", pl.String),
@@ -243,7 +243,35 @@ def _normalize_base(typ: Optional[str]) -> str:
 
 
 def deserialize_payload(df: pl.DataFrame, msg_type: str, schema_dict: Dict[str, pl.Schema], list_as_array: bool = True) -> pl.DataFrame:
-    """Deserialize payloads according to message schemas."""
+    """
+    Deserialize payloads according to message schemas.
+    This function filters the input DataFrame for records matching the specified message type,
+    then deserializes the 'payload' column (a space-separated string) into individual fields
+    based on the provided schema.
+    Parameters
+    ----------
+    df : pl.DataFrame
+        The input DataFrame containing columns like 'msg_type' and 'payload'.
+    msg_type : str
+        The message type to filter and deserialize for.
+    schema_dict : Dict[str, pl.Schema]
+        A dictionary mapping message types to their Polars schemas, where each schema
+        defines field names and their data types (including nested lists).
+    list_as_array : bool, optional
+        If True (default), convert list fields to fixed-size arrays based on the first
+        record's list length. If False, keep them as variable-length lists.
+    Returns
+    -------
+    pl.DataFrame
+        A new DataFrame with the deserialized fields added as columns. If no records match
+        the msg_type or if the schema is missing, returns the filtered (possibly empty)
+        DataFrame unchanged.
+    Notes
+    -----
+    - Logs info messages for deserialization progress and warnings/errors for missing data or schemas.
+    - Assumes 'payload' is a string of space-separated tokens, where list fields are comma-separated within tokens.
+    - For list_as_bool, the array size is determined from the first list field; inconsistent lengths may cause issues.
+    """
     logger.info(f"Deserializing payload for message type: {msg_type}")
     filtered_df = df.filter(pl.col("msg_type") == msg_type)
     if filtered_df.is_empty():

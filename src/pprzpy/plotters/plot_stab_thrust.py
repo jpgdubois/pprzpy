@@ -18,11 +18,11 @@ def plot_thrust(stab_thrust_df: pl.DataFrame, rotorcraft_status_df: pl.DataFrame
     ax : matplotlib.axes.Axes
         The matplotlib axis to plot on.
     """
-    rotorcraft_status_time = rotorcraft_status_df["timestamp"].to_numpy()
+    rotorcraft_status_time = rotorcraft_status_df["msg_timestamp"].to_numpy()
     ap_mode = rotorcraft_status_df["ap_mode"].to_numpy()
     ap_in_flight = rotorcraft_status_df["ap_in_flight"].to_numpy()
 
-    stab_thrust_time = stab_thrust_df["timestamp"].to_numpy()
+    stab_thrust_time = stab_thrust_df["msg_timestamp"].to_numpy()
     thrust_des = np.atleast_2d(stab_thrust_df["thrust_des"].to_numpy()).T
     thrust_ref = np.atleast_2d(stab_thrust_df["thrust_ref"].to_numpy()).T
     thrust = np.atleast_2d(stab_thrust_df["thrust_state"].to_numpy()).T
@@ -52,11 +52,11 @@ def plot_thrust_rate(stab_thrust_df: pl.DataFrame, rotorcraft_status_df: pl.Data
     ax : matplotlib.axes.Axes
         The matplotlib axis to plot on.
     """
-    rotorcraft_status_time = rotorcraft_status_df["timestamp"].to_numpy()
+    rotorcraft_status_time = rotorcraft_status_df["msg_timestamp"].to_numpy()
     ap_mode = rotorcraft_status_df["ap_mode"].to_numpy()
     ap_in_flight = rotorcraft_status_df["ap_in_flight"].to_numpy()
 
-    stab_thrust_time = stab_thrust_df["timestamp"].to_numpy()
+    stab_thrust_time = stab_thrust_df["msg_timestamp"].to_numpy()
     thrust_d_ref = np.atleast_2d(stab_thrust_df["thrust_d_ref"].to_numpy()).T
 
     fill_signal_status_background(ap_mode, rotorcraft_status_time, ax=ax, color_map={0: "red", 3: "yellow", 4: "green"},
@@ -84,6 +84,7 @@ def plot_stab_thrust(df: pl.DataFrame, schema: Dict[str, pl.Schema]):
 
     stab_thrust_df = deserialize_payload(df, "STAB_THRUST", schema)
     rotorcraft_status_df = deserialize_payload(df, "ROTORCRAFT_STATUS", schema)
+    # rotorcraft_status_df.write_csv("rotorcraft_status.csv")
 
     fig, axs = plt.subplots(2, 1, sharex=True)
 

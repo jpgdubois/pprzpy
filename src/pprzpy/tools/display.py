@@ -24,15 +24,29 @@ __all__ = [
     "plot_signals",
     "fill_signal_status_background",
     "draw_signal_status_lines",
+    "Condition",
+    "fill_signal_condition_background"
 ]
 
 from collections.abc import Sequence, Mapping
-from typing import Union, Optional
+from typing import Union, Optional, Callable, Any
 
 import matplotlib.pyplot as plt
 import numpy as np
 from numpy.typing import NDArray
 
+class Condition:
+    def __init__(self, condition: Any, label: str, color: str):
+        if callable(condition):
+            self.func = condition
+        else:
+            #Create a callable that tests equality with the given value
+            self.func = lambda x: x == condition
+        self.label = label
+        self.color = color
+
+    def __call__(self, value) -> bool:
+        return self.func(value)
 
 def print_signal(
     signal: NDArray[np.float64],
@@ -58,7 +72,8 @@ def print_signal(
         If the length of `signal_names` or `timestamps` does not match the respective
         dimensions of `signal`.
     """
-    signal = np.atleast_2d(signal)
+    if signal.ndim == 1:
+        signal = signal[:, np.newaxis]
     n_rows, n_cols = signal.shape
 
     # Default signal names
@@ -139,13 +154,17 @@ def plot_signals(
     ValueError
         If array lengths or numbers of signals do not match expected dimensions.
     """
-    signal = np.atleast_2d(signal)
+    if signal.ndim == 1:
+        signal = signal[:, np.newaxis]
     n_rows, n_cols = signal.shape
 
     if len(timesteps) != n_rows:
         raise ValueError(
             f"Expected {n_rows} timesteps, got {len(timesteps)}."
         )
+
+    if n_cols == 0:
+        raise ValueError("Signal array cannot be empty.")
 
     if signal_names is None:
         signal_names = [f"Signal {i + 1}" for i in range(n_cols)]
@@ -278,6 +297,52 @@ def fill_signal_status_background(
 
     return ax
 
+
+def fill_signal_condition_background(
+    signal: NDArray,
+    timesteps: NDArray,
+    conditions: Sequence[Condition],
+    ax: Optional[plt.Axes] = None,
+    annotate: bool = True,
+    **plot_kwargs
+) -> plt.Axes:
+    timesteps = np.asarray(timesteps)
+    signal = np.asarray(signal)
+
+    if timesteps.shape != signal.shape:
+        raise ValueError("timesteps and signal must have the same shape.")
+
+    ax = ax or plt.gca()
+
+    for condition in conditions:
+        region_starts = []
+        region_start = None
+        for idx in range(len(signal)):
+            is_true = condition(signal[idx])
+            if is_true and region_start is None:
+                region_start = idx
+            elif not is_true and region_start is not None:
+                ax.axvspan(timesteps[region_start], timesteps[idx - 1], color=condition.color, **plot_kwargs)
+                region_starts.append(region_start)
+                region_start = None
+        if region_start is not None:
+            ax.axvspan(timesteps[region_start], timesteps[-1], color=condition.color, **plot_kwargs)
+            region_starts.append(region_start)
+
+        if annotate:
+            for idx in region_starts:
+                ax.annotate(
+                    condition.label,
+                    xy=(timesteps[idx], 1.0),
+                    xycoords=("data", "axes fraction"),
+                    ha="left",
+                    va="top",
+                    fontsize="medium",
+                    color=condition.color,
+                    bbox=dict(facecolor="white", alpha=0.5, edgecolor="none", pad=1),
+                )
+
+    return ax
 
 def draw_signal_status_lines(
     signal: NDArray,
